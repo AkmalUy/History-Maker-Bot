@@ -1,74 +1,66 @@
-require("dotenv").config();
-const config = require("./config.js");
-const { request } = require('undici');
-const Discord = require("discord.js");
+// Package yg diperlukan
+const fs = require('node:fs');
+const path = require('node:path');
+const { Client, GatewayIntentBits, Collection ,EmbedBuilder} = require('discord.js');
+const { token } = require('./config.json');
 const axios = require('axios').default;
-const { REST } = require('@discordjs/rest');
-const { Routes } = require('discord-api-types/v9');
-//slash command
-const { SlashCommandBuilder } = require('@discordjs/builders');
-const data = new SlashCommandBuilder()
-//end slash command
+const axtoken = '20|UjKmDcWKGTx877tMjtHmEFZXGPk3grB0r14H399Y';
 
 
-const { MessageEmbed } = require('discord.js'); //embed
-const welcomeEmbed = new MessageEmbed()
-	.setColor('#ff5733')
-	.setTitle('Selamat Datang di Guild History Maker')
-    .setDescription('Guild kita ini guild casual yg santuy \nDisini ada beberapa guide yang mungkin akan berguna silakan lihat lihat. \nJangan mute notification #khusus-guild-mem dan #info-raid yaa. Karena disana ada info penting dan biar ada notif klo kita ngingetin raid. \nDan Jangan malu-malu yaa, kalau ada yang pengen ditanyain tanya aja  \n \n \nkalau pengen di invite guild in-game sekarang/nanti summon aja @inviter \n   THANK YOU')
-    
-// AXIOS CONNECT
-const axtoken = 'wBDbsSWl17btbW6IT0inoI8HakTzPvsjvK0nvPg5';
-// contoh menggunakan axios https://axios-http.com/
-// atau kamu dapat menggunakan fetch https://developer.mozilla.org/en-US/docs/Web/API/fetch
-
-axios.defaults.headers =  {
-    headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        Authorization: 'Bearer ' + axtoken
-    }
-};
-
-axios.get('https://toram-id.info/api/v1/items')
-.then((response) => console.log("Database item ok"))
-.catch((err) => console.error("Database item error"));
-// END AXIOS CONNECT
-
-const Client = new Discord.Client({
-    intents: ["GUILDS", "GUILD_MESSAGES"],
-    prefix: config.prefix,
-    initCommands: true
-});
-//Welcome
-
-//end welcome
 
 
-Client.on("ready", () => {
-        console.log("Ready");
-    });
-Client.on("message", message => {
-    if(message.content === "Hi")
-    message.channel.send("HI")
+// Create a new client instance
+
+const client = new Client({ intents: [GatewayIntentBits.Guilds] }); 
+
+
+
+client.commands = new Collection();
+const commandsPath = path.join(__dirname, 'commands');
+const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+
+for (const file of commandFiles) {
+	const filePath = path.join(commandsPath, file);
+	const command = require(filePath);
+	client.commands.set(command.data.name, command);
+}
+
+
+
+
+// When the client is ready, run this code (only once)
+client.once('ready', () => {
+	console.log('Ready!');
 });
 
-Client.on("message", message => {
-    if(message.content === "Welcome Newmem")
-    message.channel.send(
-        { embeds: [welcomeEmbed]} 
-)});
+let instance = axios.create({
+	headers: {
+		Authorization : `Bearer ${axtoken}`,
+		'Content-Type': 'application/json',
+		Accept: 'application/json',
+}});
 
-    
 
+// instance.get(`https://toram-id.info/api/v1/items/search/bunga`)
+// .then((res)=> console.log(res.data))
+// .catch((err)=> console.log(err))
+// axios.get(lling)
 
-//Client.on('interactionCreate', async interaction => {
-	
-//	if (commandName === 'cat') {
-//		const catResult = request('https://aws.random.cat/meow');
-//		const { file } = getJSONResponse(catResult.body);
-//		interaction.editReply({ files: [file] });
-//	}
-//});
+// Login to Discord with your client's token
+client.on('interactionCreate', async interaction => {
+	if (!interaction.isChatInputCommand()) return;
 
-Client.login(process.env.TOKEN);
+	const command = client.commands.get(interaction.commandName);
+
+	if (!command) return;
+
+	try {
+		await command.execute(interaction);
+	} catch (error) {
+		console.error(error);
+		await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+	}
+});
+
+		
+client.login(token)
